@@ -279,7 +279,9 @@ function storageSet(store, key, value) {
   try { value ? window[store].setItem(key, value) : window[store].removeItem(key); } catch (e) {}
 }
 
-$('f-repo').value = storageGet('localStorage', 'bioEditorRepo') || guessRepo();
+// On GitHub Pages the address already says which repository this is; prefer it over a saved
+// value, which goes stale if the user or repository is renamed.
+$('f-repo').value = guessRepo() || storageGet('localStorage', 'bioEditorRepo');
 $('f-token').value = storageGet('localStorage', 'bioEditorToken') || storageGet('sessionStorage', 'bioEditorToken');
 $('f-remember').checked = !!storageGet('localStorage', 'bioEditorToken');
 
