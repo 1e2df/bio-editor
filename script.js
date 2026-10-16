@@ -1,14 +1,19 @@
 let hasUserInteracted = false;
 
-// ----- Site content: comes from config.js, or from the editor while previewing -----
-const isPreview = new URLSearchParams(location.search).has('preview');
+// ----- Site content: comes from config.js, from the editor's live preview (?preview),
+// or from the editor's unpublished draft in this browser (?draft) -----
+const pageParams = new URLSearchParams(location.search);
+const isPreview = pageParams.has('preview');
+const hasDraftApi = typeof BioDraft !== 'undefined';
+const draftConfig = (pageParams.has('draft') && hasDraftApi) ? BioDraft.loadConfig() : null;
+const isDraftView = !!draftConfig;
 const siteConfig = (() => {
   if (isPreview) {
     try {
       if (window.parent !== window && window.parent.BIO_PREVIEW_CONFIG) return window.parent.BIO_PREVIEW_CONFIG;
     } catch (e) {}
   }
-  return window.BIO_CONFIG || {};
+  return draftConfig || window.BIO_CONFIG || {};
 })();
 
 const LINK_ICONS = {
@@ -31,7 +36,11 @@ function isVideoFile(src) {
 
 function applySiteConfig(cfg) {
   if (cfg.name) document.title = cfg.name;
+  applyMedia(cfg);
+  applyLinks(cfg);
+}
 
+function applyMedia(cfg) {
   const avatar = document.querySelector('.profile-picture');
   if (avatar && cfg.avatar) avatar.src = cfg.avatar;
 
@@ -51,7 +60,9 @@ function applySiteConfig(cfg) {
     el.src = cfg.background;
     current.replaceWith(el);
   }
+}
 
+function applyLinks(cfg) {
   // Links: a URL opens in a new tab; anything else (e.g. a Discord username) is copied.
   const container = document.querySelector('.social-links');
   if (container) {
@@ -77,6 +88,39 @@ function applySiteConfig(cfg) {
 }
 
 applySiteConfig(siteConfig);
+
+// Draft view: swap in the new photo/background/music files the editor saved in this browser.
+if (isDraftView) {
+  BioDraft.loadFiles().then(files => {
+    const media = {};
+    Object.entries(files).forEach(([kind, file]) => { media[kind] = URL.createObjectURL(file); });
+    if (files.background) media.backgroundType = files.background.type.startsWith('video') ? 'video' : 'image';
+    if (Object.keys(media).length) applyMedia(media);
+  });
+}
+
+// Way back to the editor: a banner while viewing the draft, otherwise a small "Editar" button
+// for whoever has used the editor in this browser (or opens the page with ?edit).
+function addEditorShortcut() {
+  if (isPreview) return;
+  if (isDraftView) {
+    const bar = document.createElement('div');
+    bar.className = 'draft-bar';
+    bar.innerHTML = '<span>Prévia com alterações ainda não publicadas</span>' +
+      '<a href="editor.html">Voltar ao editor</a>' +
+      '<a href="./" class="secondary">Ver versão publicada</a>';
+    document.body.appendChild(bar);
+  } else if ((hasDraftApi && BioDraft.editorUsed()) || pageParams.has('edit')) {
+    const link = document.createElement('a');
+    link.className = 'edit-button';
+    link.href = 'editor.html';
+    link.title = 'Editar a bio';
+    link.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Editar</span>';
+    document.body.appendChild(link);
+  }
+}
+
+addEditorShortcut();
 
 function initMedia() {
   console.log("initMedia called");
@@ -198,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isLocal = ['localhost', '127.0.0.1', ''].includes(location.hostname);
     let alreadyCounted = false;
     try { alreadyCounted = sessionStorage.getItem('viewCounted') === 'true'; } catch (e) {}
-    const action = (isLocal || isPreview || alreadyCounted) ? 'get' : 'hit';
+    const action = (isLocal || isPreview || isDraftView || alreadyCounted) ? 'get' : 'hit';
 
     visitorCount.textContent = '0';
     fetch(`${counterUrl}/${action}/${counterKey}`)

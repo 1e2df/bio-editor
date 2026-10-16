@@ -17,9 +17,35 @@ const WARN_FILE_MB = 25;
 
 const $ = id => document.getElementById(id);
 
-let cfg = normalizeConfig(window.BIO_CONFIG || {});
+let publishedCfg = normalizeConfig(window.BIO_CONFIG || {});   // what config.js on the site says
+let cfg = normalizeConfig(publishedCfg);                          // what is being edited
 const pending = { avatar: null, background: null, music: null };   // File objects not yet published
 const objectUrls = {};
+
+BioDraft.markEditorUsed();
+
+function hasChanges() {
+  return !!(pending.avatar || pending.background || pending.music) ||
+    JSON.stringify(cleanConfig(cfg)) !== JSON.stringify(cleanConfig(publishedCfg));
+}
+
+function cleanConfig(c) {
+  const out = normalizeConfig(c);
+  out.links = out.links.filter(l => l.value.trim());
+  out.bio = out.bio.filter(line => line.trim());
+  return out;
+}
+
+// Keep unpublished edits in this browser so the bio page (index.html?draft) can show them
+// and they survive going back and forth between the two pages.
+function persistDraft() {
+  if (hasChanges()) {
+    BioDraft.saveConfig(cfg);
+  } else {
+    BioDraft.clear();
+  }
+  $('draft-notice').hidden = !hasChanges();
+}
 
 function normalizeConfig(c) {
   return {
@@ -165,12 +191,17 @@ function pickFile(kind, inputId) {
     if (mb > WARN_FILE_MB) {
       showStatus(`"${file.name}" tem ${mb.toFixed(0)} MB. Funciona, mas o site vai demorar mais para carregar.`);
     }
-    if (objectUrls[kind]) URL.revokeObjectURL(objectUrls[kind]);
-    pending[kind] = file;
-    objectUrls[kind] = URL.createObjectURL(file);
+    setPendingFile(kind, file);
+    BioDraft.saveFile(kind, file);
     renderMedia();
     refreshPreview();
   });
+}
+
+function setPendingFile(kind, file) {
+  if (objectUrls[kind]) URL.revokeObjectURL(objectUrls[kind]);
+  pending[kind] = file || null;
+  objectUrls[kind] = file ? URL.createObjectURL(file) : '';
 }
 
 pickFile('avatar', 'f-avatar');
@@ -191,12 +222,14 @@ function previewConfig() {
 
 function refreshPreview() {
   clearTimeout(previewTimer);
+  persistDraft();
   window.BIO_PREVIEW_CONFIG = previewConfig();
   $('preview').src = `index.html?preview=${Date.now()}`;
 }
 
 function schedulePreview() {
   clearTimeout(previewTimer);
+  persistDraft();
   previewTimer = setTimeout(refreshPreview, 700);
 }
 
@@ -333,9 +366,12 @@ async function publish() {
     });
     await gh(`/git/refs/heads/${encodeURIComponent(branch)}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha }) });
 
-    // Published: the repo paths replace the local files.
+    // Published: the repo paths replace the local files and the draft is no longer needed.
     cfg = next;
-    ['avatar', 'background', 'music'].forEach(kind => { pending[kind] = null; });
+    publishedCfg = normalizeConfig(next);
+    ['avatar', 'background', 'music'].forEach(kind => setPendingFile(kind, null));
+    await BioDraft.clear();
+    persistDraft();
     renderMedia();
 
     const el = $('status');
@@ -371,17 +407,36 @@ $('download').addEventListener('click', () => {
 
 // ----- Start: show what's in config.js, then fetch the newest copy (Pages caches it for a few minutes) -----
 
-fillForm();
-refreshPreview();
+$('discard-draft').addEventListener('click', async () => {
+  if (!confirm('Descartar todas as alterações que ainda não foram publicadas?')) return;
+  ['avatar', 'background', 'music'].forEach(kind => setPendingFile(kind, null));
+  cfg = normalizeConfig(publishedCfg);
+  await BioDraft.clear();
+  fillForm();
+  refreshPreview();
+});
 
-fetch(`config.js?v=${Date.now()}`, { cache: 'no-store' })
-  .then(res => res.ok ? res.text() : Promise.reject())
-  .then(text => {
-    const fresh = normalizeConfig(parseConfigJs(text));
-    if (JSON.stringify(fresh) !== JSON.stringify(normalizeConfig(window.BIO_CONFIG || {}))) {
-      cfg = fresh;
+(async () => {
+  const draft = BioDraft.loadConfig();
+  if (draft) {
+    cfg = normalizeConfig(draft);
+    const files = await BioDraft.loadFiles();
+    Object.entries(files).forEach(([kind, file]) => setPendingFile(kind, file));
+  }
+  fillForm();
+  refreshPreview();
+
+  // config.js may be cached by GitHub Pages for a few minutes; fetch the newest copy.
+  try {
+    const res = await fetch(`config.js?v=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const fresh = normalizeConfig(parseConfigJs(await res.text()));
+    if (JSON.stringify(fresh) === JSON.stringify(publishedCfg)) return;
+    publishedCfg = fresh;
+    if (!draft) {
+      cfg = normalizeConfig(fresh);
       fillForm();
-      refreshPreview();
     }
-  })
-  .catch(() => {});
+    refreshPreview();
+  } catch (e) {}
+})();

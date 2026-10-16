@@ -46,6 +46,24 @@
         header h1 span { color: var(--accent); }
         header a { color: var(--muted); text-decoration: none; font-size: 13px; }
         header a:hover { color: var(--text); }
+        .header-actions { display: flex; align-items: center; gap: 14px; }
+        header a.primary-link { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; font-size: 14px; }
+        header a.primary-link:hover { color: var(--accent-ink); filter: brightness(1.08); }
+
+        .draft-notice {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: var(--radius);
+            border: 1px solid #5b4a1a;
+            background: #1f1a0d;
+            color: #f5d67a;
+            font-size: 13px;
+        }
+
+        .draft-notice[hidden] { display: none; }
 
         .layout {
             display: grid;
@@ -227,11 +245,18 @@
 <body>
     <header>
         <h1>Editor da <span>Bio</span></h1>
-        <a href="./" target="_blank" rel="noopener">Ver site publicado ↗</a>
+        <div class="header-actions">
+            <a href="./" target="_blank" rel="noopener">Versão publicada ↗</a>
+            <a href="index.html?draft" class="button primary-link">Ver bio →</a>
+        </div>
     </header>
 
     <main class="layout">
         <section class="form">
+            <div class="draft-notice" id="draft-notice" hidden>
+                <span>Você tem alterações que ainda não foram publicadas. Elas ficam salvas neste navegador.</span>
+                <button type="button" id="discard-draft" class="danger">Descartar</button>
+            </div>
             <div class="card">
                 <h2>Perfil</h2>
                 <label>Nome
@@ -330,6 +355,7 @@
     </main>
 
     <script src="config.js"></script>
+    <script src="draft.js"></script>
     <script src="editor.js"></script>
 </body>
 </html>
