@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Editor da Bio</title>
+    <style>
+        :root {
+            --bg: #0b0c0e;
+            --panel: #131518;
+            --panel-2: #1a1d21;
+            --line: #262a30;
+            --text: #e8eaed;
+            --muted: #8b929b;
+            --accent: #00ced1;
+            --accent-ink: #001b1c;
+            --danger: #ff6b6b;
+            --ok: #4ade80;
+            --radius: 10px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 5;
+        }
+
+        header h1 { font-size: 16px; font-weight: 600; letter-spacing: .02em; }
+        header h1 span { color: var(--accent); }
+        header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+        header a:hover { color: var(--text); }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(340px, 440px) 1fr;
+            gap: 20px;
+            padding: 20px;
+            align-items: start;
+        }
+
+        .form { display: flex; flex-direction: column; gap: 14px; }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card h2 {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+        }
+
+        label { display: flex; flex-direction: column; gap: 6px; font-weight: 500; }
+        .hint { color: var(--muted); font-size: 12px; font-weight: 400; }
+
+        input[type="text"], input[type="password"], textarea, select {
+            width: 100%;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 9px 11px;
+            font: inherit;
+        }
+
+        textarea { resize: vertical; min-height: 70px; }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .media-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .thumb {
+            width: 64px;
+            height: 64px;
+            flex: none;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            background: var(--panel-2);
+            object-fit: cover;
+            overflow: hidden;
+        }
+
+        .thumb.round { border-radius: 50%; }
+
+        .media-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+        .file-name { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        audio { width: 100%; height: 36px; }
+
+        button, .button {
+            font: inherit;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            background: var(--panel-2);
+            color: var(--text);
+            padding: 8px 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        button:hover, .button:hover { border-color: #3a4048; }
+        button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+        button.primary:hover { filter: brightness(1.08); }
+        button:disabled { opacity: .5; cursor: progress; }
+        button.icon { padding: 6px 8px; min-width: 32px; }
+        button.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+        input[type="file"] { display: none; }
+
+        .links { display: flex; flex-direction: column; gap: 8px; }
+
+        .link-row {
+            display: grid;
+            grid-template-columns: 120px 1fr auto;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .link-actions { display: flex; gap: 4px; }
+
+        .publish-status {
+            font-size: 13px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            display: none;
+            word-break: break-word;
+        }
+
+        .publish-status.show { display: block; }
+        .publish-status.ok { border-color: var(--ok); color: var(--ok); }
+        .publish-status.error { border-color: var(--danger); color: var(--danger); }
+        .publish-status a { color: inherit; }
+
+        .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .check { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+
+        details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+        details ol { margin: 8px 0 0 18px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+        details a { color: var(--accent); }
+
+        .preview {
+            position: sticky;
+            top: 72px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .preview-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        /* The site is rendered at desktop size and scaled down to fit (see fitPreview in editor.js). */
+        .preview-frame {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            max-height: calc(100vh - 140px);
+            min-height: 420px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: #000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            border: 0;
+            transform-origin: 0 0;
+            background: #000;
+        }
+
+        @media (max-width: 860px) {
+            .layout { grid-template-columns: 1fr; padding: 16px; }
+            .preview { position: static; }
+            .preview-frame { aspect-ratio: 3 / 4; max-height: 75vh; }
+            .link-row { grid-template-columns: 1fr; }
+            .link-actions { justify-content: flex-end; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Editor da <span>Bio</span></h1>
+        <a href="./" target="_blank" rel="noopener">Ver site publicado ↗</a>
+    </header>
+
+    <main class="layout">
+        <section class="form">
+            <div class="card">
+                <h2>Perfil</h2>
+                <label>Nome
+                    <input type="text" id="f-name" maxlength="40" autocomplete="off">
+                </label>
+                <label>Biografia
+                    <span class="hint">Uma frase por linha; elas aparecem uma de cada vez.</span>
+                    <textarea id="f-bio" rows="3"></textarea>
+                </label>
+                <label>Texto da tela de entrada
+                    <input type="text" id="f-start" maxlength="80" autocomplete="off">
+                </label>
+                <div class="media-row">
+                    <img id="avatar-thumb" class="thumb round" alt="">
+                    <div class="media-info">
+                        <strong>Foto de perfil</strong>
+                        <span class="file-name" id="avatar-name"></span>
+                        <div class="row">
+                            <label class="button" for="f-avatar">Trocar foto</label>
+                            <input type="file" id="f-avatar" accept="image/*">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Fundo e música</h2>
+                <div class="media-row">
+                    <div id="bg-thumb" class="thumb"></div>
+                    <div class="media-info">
+                        <strong>Plano de fundo</strong>
+                        <span class="hint">Imagem (jpg, png, gif) ou vídeo (mp4, webm).</span>
+                        <span class="file-name" id="bg-name"></span>
+                        <div class="row">
+                            <label class="button" for="f-bg">Trocar fundo</label>
+                            <input type="file" id="f-bg" accept="image/*,video/mp4,video/webm">
+                        </div>
+                    </div>
+                </div>
+                <div class="media-info">
+                    <strong>Música</strong>
+                    <span class="file-name" id="music-name"></span>
+                    <audio id="music-player" controls preload="none"></audio>
+                    <div class="row">
+                        <label class="button" for="f-music">Trocar música</label>
+                        <input type="file" id="f-music" accept="audio/*">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Links</h2>
+                <span class="hint">Cole o link completo (https://…). Se colocar só um nome de usuário (como no Discord), o ícone copia o nome ao ser clicado.</span>
+                <div class="links" id="links"></div>
+                <div class="row">
+                    <button type="button" id="add-link">+ Adicionar link</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Publicar</h2>
+                <label>Repositório
+                    <span class="hint">usuário/repositório no GitHub</span>
+                    <input type="text" id="f-repo" placeholder="usuario/repositorio" autocomplete="off">
+                </label>
+                <label>Token do GitHub
+                    <input type="password" id="f-token" placeholder="github_pat_…" autocomplete="off">
+                </label>
+                <label class="check"><input type="checkbox" id="f-remember"> Lembrar o token neste navegador</label>
+                <details>
+                    <summary>Como criar o token</summary>
+                    <ol>
+                        <li>Abra <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a>.</li>
+                        <li>Em <em>Repository access</em>, escolha <em>Only select repositories</em> e marque este repositório.</li>
+                        <li>Em <em>Permissions → Contents</em>, escolha <em>Read and write</em>.</li>
+                        <li>Clique em <em>Generate token</em>, copie e cole aqui. Não compartilhe esse token.</li>
+                    </ol>
+                </details>
+                <div class="row">
+                    <button type="button" class="primary" id="publish">Publicar no GitHub</button>
+                    <button type="button" id="download">Baixar config.js</button>
+                </div>
+                <div class="publish-status" id="status" role="status"></div>
+            </div>
+        </section>
+
+        <section class="preview">
+            <div class="preview-bar">
+                <span>Prévia (clique nela para tocar a música)</span>
+                <button type="button" id="reload-preview">Recarregar prévia</button>
+            </div>
+            <div class="preview-frame" id="preview-frame">
+                <iframe id="preview" title="Prévia do site"></iframe>
+            </div>
+        </section>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="editor.js"></script>
+</body>
+</html>
