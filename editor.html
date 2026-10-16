@@ -193,6 +193,7 @@
         details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
         details ol { margin: 8px 0 0 18px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
         details a { color: var(--accent); }
+        details .token-option { margin-top: 10px; }
 
         .preview {
             position: sticky;
@@ -323,17 +324,26 @@
                     <input type="text" id="f-repo" placeholder="usuario/repositorio" autocomplete="off">
                 </label>
                 <label>Token do GitHub
-                    <input type="password" id="f-token" placeholder="github_pat_…" autocomplete="off">
+                    <input type="password" id="f-token" placeholder="ghp_… ou github_pat_…" autocomplete="off">
                 </label>
                 <label class="check"><input type="checkbox" id="f-remember"> Lembrar o token neste navegador</label>
                 <details>
                     <summary>Como criar o token</summary>
+                    <p class="hint token-option">Jeito mais fácil (token clássico, já vem com a permissão marcada):</p>
+                    <ol>
+                        <li>Abra <a href="https://github.com/settings/tokens/new?scopes=public_repo&amp;description=Editor%20da%20bio" target="_blank" rel="noopener">este link</a> (já vem com <em>public_repo</em> marcado).</li>
+                        <li>Em <em>Expiration</em>, escolha por quanto tempo o token vale.</li>
+                        <li>Desça até o fim e clique em <em>Generate token</em>.</li>
+                        <li>Copie o código que começa com <em>ghp_</em> e cole aqui.</li>
+                    </ol>
+                    <p class="hint token-option">Jeito mais restrito (token fine-grained, acessa só este repositório):</p>
                     <ol>
                         <li>Abra <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a>.</li>
-                        <li>Em <em>Repository access</em>, escolha <em>Only select repositories</em> e marque este repositório.</li>
-                        <li>Em <em>Permissions → Contents</em>, escolha <em>Read and write</em>.</li>
-                        <li>Clique em <em>Generate token</em>, copie e cole aqui. Não compartilhe esse token.</li>
+                        <li>Em <em>Repository access</em>, escolha <em>Only select repositories</em> e selecione este repositório na lista.</li>
+                        <li>Só depois disso aparece <em>Permissions</em>: abra <em>Repository permissions</em> (ou clique em <em>Add permissions</em>), encontre <em>Contents</em> e mude de <em>No access</em> para <em>Read and write</em>.</li>
+                        <li>Clique em <em>Generate token</em>, copie o código que começa com <em>github_pat_</em> e cole aqui.</li>
                     </ol>
+                    <p class="hint token-option">Não compartilhe o token com ninguém.</p>
                 </details>
                 <div class="row">
                     <button type="button" class="primary" id="publish">Publicar no GitHub</button>
