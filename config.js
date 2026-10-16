@@ -1,14 +1,20 @@
 window.BIO_CONFIG = {
   "name": "end",
   "bio": [
-    "Gueto"
+    "11xxyy"
   ],
-  "startText": "Click here to see the motion baby",
+  "startText": "😡",
   "avatar": "assets/profile.jpg",
   "background": "assets/background.mp4",
-  "music": "assets/background_music.mp3",
+  "music": "assets/music-1792167886243.mp3",
   "links": [
-    { "type": "discord", "value": "1e2df" },
-    { "type": "x", "value": "https://x.com/endfps1" }
+    {
+      "type": "discord",
+      "value": "1e2df"
+    },
+    {
+      "type": "x",
+      "value": "https://x.com/endfps1"
+    }
   ]
 };
