@@ -316,9 +316,12 @@ async function publish() {
   storageSet('localStorage', 'bioEditorToken', $('f-remember').checked ? token : '');
   storageSet('sessionStorage', 'bioEditorToken', token);
 
+  // cache: 'no-store' matters: the browser would otherwise reuse a cached (stale) branch head,
+  // and GitHub then rejects the update as "not a fast forward".
   const gh = async (path, options = {}) => {
     const res = await fetch(`https://api.github.com/repos/${repo}${path}`, {
       ...options,
+      cache: 'no-store',
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/vnd.github+json',
@@ -327,7 +330,12 @@ async function publish() {
       }
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(friendlyError(res.status, data.message || res.statusText));
+    if (!res.ok) {
+      const error = new Error(friendlyError(res.status, data.message || res.statusText));
+      error.status = res.status;
+      error.raw = data.message || '';
+      throw error;
+    }
     return data;
   };
 
@@ -337,8 +345,6 @@ async function publish() {
     showStatus('Conectando ao GitHub…');
     const info = await gh('');
     const branch = info.default_branch;
-    const ref = await gh(`/git/ref/heads/${encodeURIComponent(branch)}`);
-    const head = await gh(`/git/commits/${ref.object.sha}`);
 
     const next = normalizeConfig(cfg);
     const tree = [];
@@ -358,13 +364,23 @@ async function publish() {
     }
     tree.push({ path: 'config.js', mode: '100644', type: 'blob', content: configToJs(next) });
 
-    showStatus('Salvando…');
-    const newTree = await gh('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree }) });
-    const commit = await gh('/git/commits', {
-      method: 'POST',
-      body: JSON.stringify({ message: 'Atualiza a bio pelo editor', tree: newTree.sha, parents: [ref.object.sha] })
-    });
-    await gh(`/git/refs/heads/${encodeURIComponent(branch)}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha }) });
+    // Commit on top of the current branch head; if the branch moved meanwhile, try again.
+    for (let attempt = 1; ; attempt++) {
+      showStatus('Salvando…');
+      const ref = await gh(`/git/ref/heads/${encodeURIComponent(branch)}`);
+      const head = await gh(`/git/commits/${ref.object.sha}`);
+      const newTree = await gh('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree }) });
+      const commit = await gh('/git/commits', {
+        method: 'POST',
+        body: JSON.stringify({ message: 'Atualiza a bio pelo editor', tree: newTree.sha, parents: [ref.object.sha] })
+      });
+      try {
+        await gh(`/git/refs/heads/${encodeURIComponent(branch)}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha }) });
+        break;
+      } catch (err) {
+        if (attempt >= 3 || !/fast forward/i.test(err.raw || '')) throw err;
+      }
+    }
 
     // Published: the repo paths replace the local files and the draft is no longer needed.
     cfg = next;
